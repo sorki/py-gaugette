@@ -16,7 +16,6 @@ class SPI:
            
         if (gaugette.platform == 'raspberrypi'):
             import spidev
-            import spidev
             self.spi = spidev.SpiDev()
             self.spi.open(bus, device)
             self.writebytes = self.spi.writebytes
