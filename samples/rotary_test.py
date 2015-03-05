@@ -40,12 +40,12 @@ remainder = steps_per_cycle//2
 
 
 # NOTE: the library includes individual calls to get
-# the rotation_state, rotation_sequence and delta values.  
+# the rotation_state, rotation_sequence and delta values.
 # However this demo only reads the rotation_state and locally
 # derives the rotation_sequence and delta.  This ensures that
 # the derived values are based on the same two input bits A and B.
 # If we used the library calls, there is a very real chance that
-# the inputs would change while we were sampling, giving us 
+# the inputs would change while we were sampling, giving us
 # inconsistent values in the output table.
 
 while True:

@@ -44,7 +44,7 @@ while True:
         time.sleep(0.2)
     else:
         time.sleep(0.5)
-        
+
     # vertically scroll to switch between buffers
     print("scroll")
     for i in range(0,32):

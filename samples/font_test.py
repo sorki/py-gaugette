@@ -70,7 +70,7 @@ while True:
         textSize = led.draw_text3(0,row+y,font.name,font)
         if textSize > 256:
             textSize = 256
-            
+
         led.display()
 
         for scroll in range(0,32):
@@ -90,7 +90,7 @@ while True:
                 led.display()
         else:
             time.sleep(1.0)
-            
+
             #row = (offset+32) % 64
             #led.clear_block(0,row,128,32)
             #led.draw_text3(-scroll,row+y,font.name,font)

@@ -2,7 +2,7 @@
 # ssd1306.py from https://github.com/guyc/py-gaugette
 # ported by Guy Carpenter, Clearwater Software
 #
-# This library works with 
+# This library works with
 #   Adafruit's 128x32 SPI monochrome OLED   http://www.adafruit.com/products/661
 #   Adafruit's 128x64 SPI monochrome OLED   http://www.adafruit.com/products/326
 # it should work with other SSD1306-based displays.
@@ -27,14 +27,14 @@
 #   data in this case refers only to the display memory buffer.
 #   keep D/C LOW for the command byte including any following argument bytes.
 #   Pull D/C HIGH only when writting to the display memory buffer.
-#   
+#
 # SPI and GPIO calls are made through an abstraction library that calls
 # the appropriate library for the platform.
 # For the RaspberryPi:
 #     wiring2
 #     spidev
 # For the BeagleBone Black:
-#     Adafruit_BBIO.SPI 
+#     Adafruit_BBIO.SPI
 #     Adafruit_BBIO.GPIO
 #
 # - The pin connections between the BeagleBone Black SPI0 and OLED module are:
@@ -65,7 +65,7 @@ class SSD1306:
 
     EXTERNAL_VCC   = 0x1
     SWITCH_CAP_VCC = 0x2
-        
+
     SET_LOW_COLUMN        = 0x00
     SET_HIGH_COLUMN       = 0x10
     SET_MEMORY_MODE       = 0x20
@@ -131,7 +131,7 @@ class SSD1306:
 
     def command(self, *bytes):
         # already low
-        # self.gpio.output(self.dc_pin, self.gpio.LOW) 
+        # self.gpio.output(self.dc_pin, self.gpio.LOW)
         self.spi.writebytes(list(bytes))
 
     def data(self, bytes):
@@ -147,7 +147,7 @@ class SSD1306:
             self.spi.writebytes(bytes[start:start+count])
             start += count
         self.gpio.output(self.dc_pin, self.gpio.LOW)
-        
+
     def begin(self, vcc_state = SWITCH_CAP_VCC):
         time.sleep(0.001) # 1ms
         self.reset()
@@ -156,12 +156,12 @@ class SSD1306:
 
         # support for 128x32 and 128x64 line models
         if self.rows == 64:
-            self.command(self.SET_MULTIPLEX, 0x3F) 
+            self.command(self.SET_MULTIPLEX, 0x3F)
             self.command(self.SET_COM_PINS, 0x12)
         else:
             self.command(self.SET_MULTIPLEX, 0x1F)
             self.command(self.SET_COM_PINS, 0x02)
-            
+
         self.command(self.SET_DISPLAY_OFFSET, 0x00)
         self.command(self.SET_START_LINE | 0x00)
         if (vcc_state == self.EXTERNAL_VCC):
@@ -180,7 +180,7 @@ class SSD1306:
         self.command(self.DISPLAY_ALL_ON_RESUME)
         self.command(self.NORMAL_DISPLAY)
         self.command(self.DISPLAY_ON)
-        
+
     def clear_display(self):
         self.bitmap.clear()
 
@@ -219,7 +219,7 @@ class SSD1306:
     # col:        Starting col to write to.
     # col_count:  Number of cols to write.
     # col_offset: column offset in buffer to write from
-    #  
+    #
     def display_block(self, bitmap, row, col, col_count, col_offset=0):
         page_count = bitmap.rows >> 3
         page_start = row >> 3
@@ -233,13 +233,13 @@ class SSD1306:
         length = col_count * page_count
         self.data(bitmap.data[start:start+length])
 
-    # Diagnostic print of the memory buffer to stdout 
+    # Diagnostic print of the memory buffer to stdout
     def dump_buffer(self):
         self.bitmap.dump()
 
     def draw_pixel(self, x, y, on=True):
         self.bitmap.draw_pixel(x,y,on)
-        
+
     def draw_text(self, x, y, string):
         font_bytes = self.font.bytes
         font_rows = self.font.rows
@@ -277,7 +277,7 @@ class SSD1306:
 
     def clear_block(self, x0,y0,dx,dy):
         self.bitmap.clear_block(x0,y0,dx,dy)
-        
+
     def draw_text3(self, x, y, string, font):
         return self.bitmap.draw_text(x,y,string,font)
 
@@ -285,22 +285,22 @@ class SSD1306:
         return self.bitmap.text_width(string, font)
 
     class Bitmap:
-    
+
         # Pixels are stored in column-major order!
         # This makes it easy to reference a vertical slice of the display buffer
-        # and we use the to achieve reasonable performance vertical scrolling 
+        # and we use the to achieve reasonable performance vertical scrolling
         # without hardware support.
         def __init__(self, cols, rows):
             self.rows = rows
             self.cols = cols
             self.bytes_per_col = rows / 8
             self.data = [0] * (self.cols * self.bytes_per_col)
-    
+
         def clear(self):
             for i in range(0,len(self.data)):
                 self.data[i] = 0
 
-        # Diagnostic print of the memory buffer to stdout 
+        # Diagnostic print of the memory buffer to stdout
         def dump(self):
             for y in range(0, self.rows):
                 mem_row = y/8
@@ -314,7 +314,7 @@ class SSD1306:
                     else:
                         line += ' '
                 print('|'+line+'|')
-                
+
         def draw_pixel(self, x, y, on=True):
             if (x<0 or x>=self.cols or y<0 or y>=self.rows):
                 return
@@ -322,12 +322,12 @@ class SSD1306:
             mem_row = y / 8
             bit_mask = 1 << (y % 8)
             offset = mem_row + self.rows/8 * mem_col
-    
+
             if on:
                 self.data[offset] |= bit_mask
             else:
                 self.data[offset] &= (0xFF - bit_mask)
-    
+
         def clear_block(self, x0,y0,dx,dy):
             for x in range(x0,x0+dx):
                 for y in range(y0,y0+dy):
@@ -349,16 +349,16 @@ class SSD1306:
                         x += font.kerning[prev_char][pos] + font.gap_width
                     prev_char = pos
                     prev_width = width
-                    
+
             if prev_char != None:
                 x += prev_width
-                
+
             return x
-              
+
         def draw_text(self, x, y, string, font):
             height = font.char_height
             prev_char = None
-    
+
             for c in string:
                 if (c<font.start_char or c>font.end_char):
                     if prev_char != None:
@@ -371,7 +371,7 @@ class SSD1306:
                         x += font.kerning[prev_char][pos] + font.gap_width
                     prev_char = pos
                     prev_width = width
-                    
+
                     bytes_per_row = (width + 7) / 8
                     for row in range(0,height):
                         py = y + row
@@ -386,10 +386,10 @@ class SSD1306:
                                 mask = 0x80
                                 p+=1
                         offset += bytes_per_row
-              
+
             if prev_char != None:
                 x += prev_width
-    
+
             return x
 
     # This is a helper class to display a scrollable list of text lines.
@@ -417,10 +417,10 @@ class SSD1306:
                     text_bitmap = ssd1306.Bitmap(width+15, self.rows)
                     text_bitmap.draw_text(0,downset,text,font)
                 self.bitmaps.append(text_bitmap)
-                
+
             # display the first word in the first position
             self.ssd1306.display_block(self.bitmaps[0], 0, 0, self.cols)
-    
+
         # how many steps to the nearest home position
         def align_offset(self):
             pos = self.position % self.rows
@@ -438,12 +438,12 @@ class SSD1306:
                         time.sleep(delay)
                     self.scroll(sign)
             return self.position / self.rows
-    
+
         # scroll up or down.  Does multiple one-pixel scrolls if delta is not >1 or <-1
         def scroll(self, delta):
             if delta == 0:
                 return
-    
+
             count = len(self.list)
             step = cmp(delta, 0)
             for i in range(0,delta, step):
@@ -459,7 +459,7 @@ class SSD1306:
                 self.ssd1306.command(self.ssd1306.SET_START_LINE | self.offset)
                 max_position = count * self.rows
                 self.position = (self.position + max_position + step) % max_position
-    
+
         # pans the current row back and forth repeatedly.
         # Note that this currently only works if we are at a home position.
         def auto_pan(self):
@@ -467,7 +467,7 @@ class SSD1306:
             if n != self.pan_row:
                 self.pan_row = n
                 self.pan_offset = 0
-                
+
             text_bitmap = self.bitmaps[n]
             if text_bitmap.cols > self.cols:
                 row = self.offset # this only works if we are at a home position
@@ -482,4 +482,4 @@ class SSD1306:
                     else:
                         self.pan_direction = 1
                 self.ssd1306.display_block(text_bitmap, row, 0, self.cols, self.pan_offset)
-    
+

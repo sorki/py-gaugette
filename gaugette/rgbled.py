@@ -4,7 +4,7 @@ import gaugette.gpio
 if gaugette.platform == 'beaglebone':
   raise NotImplemented('rgbled is not supported on this platform')
 
-import wiringpi2 
+import wiringpi2
 import threading
 
 class RgbLed:
@@ -46,8 +46,8 @@ class RgbLed:
 
     #----------------------------------------------------------------------
     # Optional subclass provides background services for running colour fade sequences
-    #---------------------------------------------------------------------- 
-        
+    #----------------------------------------------------------------------
+
     class Worker(threading.Thread):
         def __init__(self, r_pin, g_pin, b_pin):
             threading.Thread.__init__(self)
@@ -70,7 +70,7 @@ class RgbLed:
             self.green = g
             self.blue = b
             self.rgbled.set(r,g,b)
-            
+
         def run(self):
             self.condition.acquire()
             self.changed = True
@@ -106,4 +106,4 @@ class RgbLed:
                 else:
                     # must be a simple delay
                     self.condition.wait(action / 1000.0)
-            
+

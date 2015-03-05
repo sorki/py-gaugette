@@ -24,7 +24,7 @@ except gdata.service.RequestError as error:
         worksheets_feed = gd_client.GetWorksheetsFeed(spreadsheet_id)
     else:
         raise
-    
+
 worksheet_id = worksheets_feed.entry[0].id.text.rsplit('/',1)[1]
 
 now = datetime.datetime.now().isoformat(' ')
@@ -44,4 +44,4 @@ except gdata.service.RequestError as error:
     else:
         raise
 
-print "done"    
+print "done"

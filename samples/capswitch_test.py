@@ -13,7 +13,7 @@ else:  # beaglebone
   RGB_GREEN  = 'P9_X'
   RGB_BLUE   = 'P9_X'
   raise NotImplementedError('capswitch is not yet supported on the beaglebone')
- 
+
 switch = gaugette.capswitch.CapSwitch(SWITCH_PIN)
 led = gaugette.rgbled.RgbLed(RGB_RED, RGB_GREEN, RGB_BLUE)
 

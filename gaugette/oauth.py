@@ -74,12 +74,12 @@ class OAuth:
             print(response.read())
             sys.exit()
         return self.user_code
-    
+
     def get_new_token(self):
         # call get_device_code if not already set
         if not self.user_code:
             self.get_user_code()
-            
+
         while self.token == None:
             self.conn.request(
                 "POST",
@@ -114,7 +114,7 @@ class OAuth:
                 'refresh_token' : refresh_token,
                 'grant_type'    : 'refresh_token'
                 }),
-            {"Content-type": "application/x-www-form-urlencoded"}            
+            {"Content-type": "application/x-www-form-urlencoded"}
             )
 
         response = self.conn.getresponse()
@@ -131,7 +131,7 @@ class OAuth:
             print("Unexpected response %d to renewal request" % response.status)
             print(response.read())
         return False
-              
+
     def spreadsheet_service(self):
         headers = {
             "Authorization": "%s %s" % (self.token['token_type'], self.token['access_token'])
@@ -145,4 +145,4 @@ class OAuth:
         }
         client = gdata.docs.service.DocsService(additional_headers=headers)
         return client
-        
+

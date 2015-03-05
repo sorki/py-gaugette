@@ -15,7 +15,7 @@ class CapSwitch:
             # 1) set pin low and to output to discharge
             self.gpio.setup(self.pin, self.gpio.OUT)
             self.gpio.output(self.pin, self.gpio.LOW)
-    
+
             # 2) make the pin an input without the internal pull-up on
             self.gpio.setup(self.pin, self.gpio.IN, pull_up_down=self.gpio.PUD_OFF)
 
@@ -27,10 +27,10 @@ class CapSwitch:
 
             total += cycles
         mean = total / self.repeats
-    
-        return (mean > self.threshold)
-            
 
-        
-        
-        
+        return (mean > self.threshold)
+
+
+
+
+

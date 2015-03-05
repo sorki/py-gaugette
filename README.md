@@ -92,7 +92,7 @@ SSD1306 Font Usage
     from gaugette.fonts import arial_16
     font = arial_16  # fonts are modules, does not need to be instantiated
     # draw_text3 returns the col position following the printed text.
-    x = led.draw_text3(0,0,'Hello World',font)  
+    x = led.draw_text3(0,0,'Hello World',font)
 
     # text_width returns the width of the string in pixels, useful for centering:
     text_width = led.text_width('Hello World',font)
@@ -100,7 +100,7 @@ SSD1306 Font Usage
     led.draw_text3(x,0,'Hello World',font)
 ```
 
-The fonts include the printable ASCII characters ('!' through '~') and because of the usefulness of the degree symbol '&deg;', it has been added as a non-standard character 127 (0x7F hex and 177 octal).  Use the degree symbol in a python literal like this: 
+The fonts include the printable ASCII characters ('!' through '~') and because of the usefulness of the degree symbol '&deg;', it has been added as a non-standard character 127 (0x7F hex and 177 octal).  Use the degree symbol in a python literal like this:
 ```python
 textSize = led.draw_text3(0,0,'451\177F', font)
 ```
@@ -189,7 +189,7 @@ assumes the free leg of the switch is wired to GND.
     sw = gaugette.switch.Switch(SW_PIN)  # pullUp defaults to True
     # which is equivalent to...
     sw = gaugette.switch.Switch(SW_PIN, pullUp=True)
-``` 
+```
 
 If you wire to Vcc you must set the optional pullUp parameter in the constructor to False.
 
@@ -198,7 +198,7 @@ If you wire to Vcc you must set the optional pullUp parameter in the constructor
     sw = gaugette.switch.Switch(SW_PIN, pullUp=False)
 ```
 
-Regardless of the wiring polarity, the returned results are 0 for switch 
+Regardless of the wiring polarity, the returned results are 0 for switch
 open, 1 for switch closed.
 
 
@@ -217,7 +217,7 @@ cd myApplication
 git clone git://github.com/guyc/py-gaugette.git
 ln -s py-gaugette/gaugette gaugette
 ```
-The soft link is created so that the local directory `gaugette` will point to 
+The soft link is created so that the local directory `gaugette` will point to
 `py-gaugette/gaugette` which simplifies your import statements.
 
 Alternatively if you want to install this module as a system-wide python module, you can
