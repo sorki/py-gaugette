@@ -12,7 +12,7 @@ else:  # beagebone
   DC_PIN    = "P9_13"
 
 print("init")
-led = gaugette.ssd1306.SSD1306(reset_pin=RESET_PIN, dc_pin=DC_PIN, rows=ROWS, cols=128)
+led = gaugette.ssd1306.SSD1306_SPI(reset_pin=RESET_PIN, dc_pin=DC_PIN, rows=ROWS, cols=128)
 print("begin")
 led.begin()
 print("clear")

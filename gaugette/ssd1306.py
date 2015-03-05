@@ -50,13 +50,13 @@
 #      P9_1   -> GND
 #----------------------------------------------------------------------
 
-import gaugette.gpio
+#import gaugette
 import gaugette.spi
-import gaugette.font5x8
+from gaugette.font5x8 import Font5x8
 import time
 import sys
 
-class SSD1306:
+class SSD1306(object):
 
     # Class constants are externally accessible as gaugette.ssd1306.SSD1306.CONST
     # or my_instance.CONST
@@ -101,52 +101,28 @@ class SSD1306:
     MEMORY_MODE_VERT  = 0x01
     MEMORY_MODE_PAGE  = 0x02
 
-    # Device name will be /dev/spidev-{bus}.{device}
-    # dc_pin is the data/commmand pin.  This line is HIGH for data, LOW for command.
-    # We will keep d/c low and bump it high only for commands with data
-    # reset is normally HIGH, and pulled LOW to reset the display
-
-    def __init__(self, bus=0, device=0, dc_pin="P9_15", reset_pin="P9_13", buffer_rows=64, buffer_cols=128, rows=32, cols=128):
+    def __init__(self, reset_pin="P9_13", buffer_rows=64, buffer_cols=128, rows=32, cols=128):
         self.cols = cols
         self.rows = rows
         self.buffer_rows = buffer_rows
         self.mem_bytes = self.buffer_rows * self.cols / 8 # total bytes in SSD1306 display ram
-        self.dc_pin = dc_pin
         self.reset_pin = reset_pin
-        self.spi = gaugette.spi.SPI(bus, device)
-        self.gpio = gaugette.gpio.GPIO()
-        self.gpio.setup(self.reset_pin, self.gpio.OUT)
-        self.gpio.output(self.reset_pin, self.gpio.HIGH)
-        self.gpio.setup(self.dc_pin, self.gpio.OUT)
-        self.gpio.output(self.dc_pin, self.gpio.LOW)
-        self.font = gaugette.font5x8.Font5x8
+        if self.reset_pin:
+            import gaugette.gpio
+            self.gpio = gaugette.gpio.GPIO()
+            self.gpio.setup(self.reset_pin, self.gpio.OUT)
+            self.gpio.output(self.reset_pin, self.gpio.HIGH)
+
+        self.font = Font5x8
         self.col_offset = 0
         self.bitmap = self.Bitmap(buffer_cols, buffer_rows)
         self.flipped = False
 
     def reset(self):
-        self.gpio.output(self.reset_pin, self.gpio.LOW)
-        time.sleep(0.010) # 10ms
-        self.gpio.output(self.reset_pin, self.gpio.HIGH)
-
-    def command(self, *bytes):
-        # already low
-        # self.gpio.output(self.dc_pin, self.gpio.LOW)
-        self.spi.writebytes(list(bytes))
-
-    def data(self, bytes):
-        self.gpio.output(self.dc_pin, self.gpio.HIGH)
-        #  chunk data to work around 255 byte limitation in adafruit implementation of writebytes
-        # revisit - change to 1024 when Adafruit_BBIO is fixed.
-        max_xfer = 255 if gaugette.platform == 'beaglebone' else 1024
-        start = 0
-        remaining = len(bytes)
-        while remaining>0:
-            count = remaining if remaining <= max_xfer else max_xfer
-            remaining -= count
-            self.spi.writebytes(bytes[start:start+count])
-            start += count
-        self.gpio.output(self.dc_pin, self.gpio.LOW)
+        if self.reset_pin:
+            self.gpio.output(self.reset_pin, self.gpio.LOW)
+            time.sleep(0.010) # 10ms
+            self.gpio.output(self.reset_pin, self.gpio.HIGH)
 
     def begin(self, vcc_state = SWITCH_CAP_VCC):
         time.sleep(0.001) # 1ms
@@ -483,3 +459,82 @@ class SSD1306:
                         self.pan_direction = 1
                 self.ssd1306.display_block(text_bitmap, row, 0, self.cols, self.pan_offset)
 
+
+class SSD1306_SPI(SSD1306):
+    # Device name will be /dev/spidev-{bus}.{device}
+    # dc_pin is the data/commmand pin.  This line is HIGH for data, LOW for command.
+    # We will keep d/c low and bump it high only for commands with data.
+    # reset is normally HIGH, and pulled LOW to reset the display
+
+    def __init__(self, bus=0, device=0, dc_pin=1, reset_pin=2,
+                 buffer_rows=64, buffer_cols=128,
+                 rows=32, cols=128):
+        self.dc_pin = dc_pin
+        self.spi = gaugette.spi.SPI(bus, device)
+
+        super(SSD1306_SPI, self).__init__(reset_pin,
+                                          buffer_rows, buffer_cols,
+                                          rows, cols)
+        self.gpio.pinMode(self.dc_pin, self.gpio.OUTPUT)
+        self.gpio.digitalWrite(self.dc_pin, self.gpio.LOW)
+
+    def command(self, *bytes):
+        # already low
+        # self.gpio.digitalWrite(self.dc_pin, self.gpio.LOW)
+        self.spi.writebytes(list(bytes))
+
+    def data(self, bytes):
+        self.gpio.digitalWrite(self.dc_pin, self.gpio.HIGH)
+        self.spi.writebytes(bytes)
+        self.gpio.digitalWrite(self.dc_pin, self.gpio.LOW)
+
+    """
+    def data(self, bytes):
+        self.gpio.output(self.dc_pin, self.gpio.HIGH)
+        #  chunk data to work around 255 byte limitation in adafruit implementation of writebytes
+        # revisit - change to 1024 when Adafruit_BBIO is fixed.
+        max_xfer = 255 if gaugette.platform == 'beaglebone' else 1024
+        start = 0
+        remaining = len(bytes)
+        while remaining>0:
+            count = remaining if remaining <= max_xfer else max_xfer
+            remaining -= count
+            self.spi.writebytes(bytes[start:start+count])
+            start += count
+        self.gpio.output(self.dc_pin, self.gpio.LOW)
+    """
+
+
+class SSD1306_I2C(SSD1306):
+    I2C_CONTROL = 0x00
+    I2C_DATA    = 0x40
+
+    I2C_BLOCKSIZE = 32
+
+    # Device name will be /dev/i2c-{bus}.{device}
+    # bus number is being ignored as Adafruit_I2C auto-detects correct bus
+
+    def __init__(self, bus=0, address=0x3c, reset_pin=None,
+                 buffer_rows=64, buffer_cols=128,
+                 rows=32, cols=128):
+
+        super(SSD1306_I2C, self).__init__(reset_pin,
+                                          buffer_rows, buffer_cols,
+                                          rows, cols)
+
+        import smbus
+        self.i2c = smbus.SMBus(bus)
+        self.address = address
+
+    def command(self, *bytes):
+        self.i2c.write_i2c_block_data(self.address, self.I2C_CONTROL,
+                                      list(bytes))
+
+    def data(self, bytes):
+        # not more than 32 bytes at a time
+        for chunk in zip(*[iter(list(bytes))] * self.I2C_BLOCKSIZE):
+            self.i2c.write_i2c_block_data(self.address, self.I2C_DATA,
+                                          list(chunk))
+        # remaining bytes
+        rest = bytes[len(bytes) - len(bytes) % self.I2C_BLOCKSIZE:]
+        self.i2c.write_i2c_block_data(self.address, self.I2C_DATA, rest)
