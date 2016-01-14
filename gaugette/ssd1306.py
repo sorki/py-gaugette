@@ -2,9 +2,10 @@
 # ssd1306.py from https://github.com/guyc/py-gaugette
 # ported by Guy Carpenter, Clearwater Software
 #
-# This library works with 
+# This library works with
 #   Adafruit's 128x32 SPI monochrome OLED   http://www.adafruit.com/products/661
 #   Adafruit's 128x64 SPI monochrome OLED   http://www.adafruit.com/products/326
+#   SSD1306 I2C OLEDs
 # it should work with other SSD1306-based displays.
 # The datasheet for the SSD1306 is available
 #   http://www.adafruit.com/datasheets/SSD1306.pdf
@@ -27,14 +28,14 @@
 #   data in this case refers only to the display memory buffer.
 #   keep D/C LOW for the command byte including any following argument bytes.
 #   Pull D/C HIGH only when writting to the display memory buffer.
-#   
+#
 # SPI and GPIO calls are made through an abstraction library that calls
 # the appropriate library for the platform.
 # For the RaspberryPi:
 #     wiring2
 #     spidev
 # For the BeagleBone Black:
-#     Adafruit_BBIO.SPI 
+#     Adafruit_BBIO.SPI
 #     Adafruit_BBIO.GPIO
 #
 # - The pin connections between the BeagleBone Black SPI0 and OLED module are:
@@ -51,13 +52,12 @@
 #----------------------------------------------------------------------
 
 import gaugette.platform
-import gaugette.gpio
 import gaugette.spi
-import gaugette.font5x8
+from gaugette.font5x8 import Font5x8
 import time
 import sys
 
-class SSD1306:
+class SSD1306(object):
 
     # Class constants are externally accessible as gaugette.ssd1306.SSD1306.CONST
     # or my_instance.CONST
@@ -66,7 +66,7 @@ class SSD1306:
 
     EXTERNAL_VCC   = 0x1
     SWITCH_CAP_VCC = 0x2
-        
+
     SET_LOW_COLUMN        = 0x00
     SET_HIGH_COLUMN       = 0x10
     SET_MEMORY_MODE       = 0x20
@@ -102,53 +102,29 @@ class SSD1306:
     MEMORY_MODE_VERT  = 0x01
     MEMORY_MODE_PAGE  = 0x02
 
-    # Device name will be /dev/spidev-{bus}.{device}
-    # dc_pin is the data/commmand pin.  This line is HIGH for data, LOW for command.
-    # We will keep d/c low and bump it high only for commands with data
-    # reset is normally HIGH, and pulled LOW to reset the display
-
-    def __init__(self, bus=0, device=0, dc_pin="P9_15", reset_pin="P9_13", buffer_rows=64, buffer_cols=128, rows=32, cols=128):
+    def __init__(self, reset_pin="P9_13", buffer_rows=64, buffer_cols=128, rows=32, cols=128):
         self.cols = cols
         self.rows = rows
         self.buffer_rows = buffer_rows
         self.mem_bytes = self.buffer_rows * self.cols / 8 # total bytes in SSD1306 display ram
-        self.dc_pin = dc_pin
         self.reset_pin = reset_pin
-        self.spi = gaugette.spi.SPI(bus, device)
-        self.gpio = gaugette.gpio.GPIO()
-        self.gpio.setup(self.reset_pin, self.gpio.OUT)
-        self.gpio.output(self.reset_pin, self.gpio.HIGH)
-        self.gpio.setup(self.dc_pin, self.gpio.OUT)
-        self.gpio.output(self.dc_pin, self.gpio.LOW)
-        self.font = gaugette.font5x8.Font5x8
+        if self.reset_pin:
+            import gaugette.gpio
+            self.gpio = gaugette.gpio.GPIO()
+            self.gpio.setup(self.reset_pin, self.gpio.OUT)
+            self.gpio.output(self.reset_pin, self.gpio.HIGH)
+
+        self.font = Font5x8
         self.col_offset = 0
         self.bitmap = self.Bitmap(buffer_cols, buffer_rows)
         self.flipped = False
 
     def reset(self):
-        self.gpio.output(self.reset_pin, self.gpio.LOW)
-        time.sleep(0.010) # 10ms
-        self.gpio.output(self.reset_pin, self.gpio.HIGH)
+        if self.reset_pin:
+            self.gpio.output(self.reset_pin, self.gpio.LOW)
+            time.sleep(0.010) # 10ms
+            self.gpio.output(self.reset_pin, self.gpio.HIGH)
 
-    def command(self, *bytes):
-        # already low
-        # self.gpio.output(self.dc_pin, self.gpio.LOW) 
-        self.spi.writebytes(list(bytes))
-
-    def data(self, bytes):
-        self.gpio.output(self.dc_pin, self.gpio.HIGH)
-        #  chunk data to work around 255 byte limitation in adafruit implementation of writebytes
-        # revisit - change to 1024 when Adafruit_BBIO is fixed.
-        max_xfer = 255 if gaugette.platform.isBeagleBoneBlack else 1024
-        start = 0
-        remaining = len(bytes)
-        while remaining>0:
-            count = remaining if remaining <= max_xfer else max_xfer
-            remaining -= count
-            self.spi.writebytes(bytes[start:start+count])
-            start += count
-        self.gpio.output(self.dc_pin, self.gpio.LOW)
-        
     def begin(self, vcc_state = SWITCH_CAP_VCC):
         time.sleep(0.001) # 1ms
         self.reset()
@@ -157,12 +133,12 @@ class SSD1306:
 
         # support for 128x32 and 128x64 line models
         if self.rows == 64:
-            self.command(self.SET_MULTIPLEX, 0x3F) 
+            self.command(self.SET_MULTIPLEX, 0x3F)
             self.command(self.SET_COM_PINS, 0x12)
         else:
             self.command(self.SET_MULTIPLEX, 0x1F)
             self.command(self.SET_COM_PINS, 0x02)
-            
+
         self.command(self.SET_DISPLAY_OFFSET, 0x00)
         self.command(self.SET_START_LINE | 0x00)
         if (vcc_state == self.EXTERNAL_VCC):
@@ -181,7 +157,7 @@ class SSD1306:
         self.command(self.DISPLAY_ALL_ON_RESUME)
         self.command(self.NORMAL_DISPLAY)
         self.command(self.DISPLAY_ON)
-        
+
     def clear_display(self):
         self.bitmap.clear()
 
@@ -220,7 +196,7 @@ class SSD1306:
     # col:        Starting col to write to.
     # col_count:  Number of cols to write.
     # col_offset: column offset in buffer to write from
-    #  
+    #
     def display_block(self, bitmap, row, col, col_count, col_offset=0):
         page_count = bitmap.rows >> 3
         page_start = row >> 3
@@ -234,13 +210,13 @@ class SSD1306:
         length = col_count * page_count
         self.data(bitmap.data[start:start+length])
 
-    # Diagnostic print of the memory buffer to stdout 
+    # Diagnostic print of the memory buffer to stdout
     def dump_buffer(self):
         self.bitmap.dump()
 
     def draw_pixel(self, x, y, on=True):
         self.bitmap.draw_pixel(x,y,on)
-        
+
     def draw_text(self, x, y, string):
         font_bytes = self.font.bytes
         font_rows = self.font.rows
@@ -278,7 +254,7 @@ class SSD1306:
 
     def clear_block(self, x0,y0,dx,dy):
         self.bitmap.clear_block(x0,y0,dx,dy)
-        
+
     def draw_text3(self, x, y, string, font):
         return self.bitmap.draw_text(x,y,string,font)
 
@@ -286,22 +262,22 @@ class SSD1306:
         return self.bitmap.text_width(string, font)
 
     class Bitmap:
-    
+
         # Pixels are stored in column-major order!
         # This makes it easy to reference a vertical slice of the display buffer
-        # and we use the to achieve reasonable performance vertical scrolling 
+        # and we use the to achieve reasonable performance vertical scrolling
         # without hardware support.
         def __init__(self, cols, rows):
             self.rows = rows
             self.cols = cols
             self.bytes_per_col = rows / 8
             self.data = [0] * (self.cols * self.bytes_per_col)
-    
+
         def clear(self):
             for i in range(0,len(self.data)):
                 self.data[i] = 0
 
-        # Diagnostic print of the memory buffer to stdout 
+        # Diagnostic print of the memory buffer to stdout
         def dump(self):
             for y in range(0, self.rows):
                 mem_row = y/8
@@ -315,7 +291,7 @@ class SSD1306:
                     else:
                         line += ' '
                 print('|'+line+'|')
-                
+
         def draw_pixel(self, x, y, on=True):
             if (x<0 or x>=self.cols or y<0 or y>=self.rows):
                 return
@@ -323,12 +299,12 @@ class SSD1306:
             mem_row = y / 8
             bit_mask = 1 << (y % 8)
             offset = mem_row + self.rows/8 * mem_col
-    
+
             if on:
                 self.data[offset] |= bit_mask
             else:
                 self.data[offset] &= (0xFF - bit_mask)
-    
+
         def clear_block(self, x0,y0,dx,dy):
             for x in range(x0,x0+dx):
                 for y in range(y0,y0+dy):
@@ -350,16 +326,16 @@ class SSD1306:
                         x += font.kerning[prev_char][pos] + font.gap_width
                     prev_char = pos
                     prev_width = width
-                    
+
             if prev_char != None:
                 x += prev_width
-                
+
             return x
-              
+
         def draw_text(self, x, y, string, font):
             height = font.char_height
             prev_char = None
-    
+
             for c in string:
                 if (c<font.start_char or c>font.end_char):
                     if prev_char != None:
@@ -372,7 +348,7 @@ class SSD1306:
                         x += font.kerning[prev_char][pos] + font.gap_width
                     prev_char = pos
                     prev_width = width
-                    
+
                     bytes_per_row = (width + 7) / 8
                     for row in range(0,height):
                         py = y + row
@@ -387,10 +363,10 @@ class SSD1306:
                                 mask = 0x80
                                 p+=1
                         offset += bytes_per_row
-              
+
             if prev_char != None:
                 x += prev_width
-    
+
             return x
 
     # This is a helper class to display a scrollable list of text lines.
@@ -418,10 +394,10 @@ class SSD1306:
                     text_bitmap = ssd1306.Bitmap(width+15, self.rows)
                     text_bitmap.draw_text(0,downset,text,font)
                 self.bitmaps.append(text_bitmap)
-                
+
             # display the first word in the first position
             self.ssd1306.display_block(self.bitmaps[0], 0, 0, self.cols)
-    
+
         # how many steps to the nearest home position
         def align_offset(self):
             pos = self.position % self.rows
@@ -439,12 +415,12 @@ class SSD1306:
                         time.sleep(delay)
                     self.scroll(sign)
             return self.position / self.rows
-    
+
         # scroll up or down.  Does multiple one-pixel scrolls if delta is not >1 or <-1
         def scroll(self, delta):
             if delta == 0:
                 return
-    
+
             count = len(self.list)
             step = cmp(delta, 0)
             for i in range(0,delta, step):
@@ -460,7 +436,7 @@ class SSD1306:
                 self.ssd1306.command(self.ssd1306.SET_START_LINE | self.offset)
                 max_position = count * self.rows
                 self.position = (self.position + max_position + step) % max_position
-    
+
         # pans the current row back and forth repeatedly.
         # Note that this currently only works if we are at a home position.
         def auto_pan(self):
@@ -468,7 +444,7 @@ class SSD1306:
             if n != self.pan_row:
                 self.pan_row = n
                 self.pan_offset = 0
-                
+
             text_bitmap = self.bitmaps[n]
             if text_bitmap.cols > self.cols:
                 row = self.offset # this only works if we are at a home position
@@ -483,4 +459,76 @@ class SSD1306:
                     else:
                         self.pan_direction = 1
                 self.ssd1306.display_block(text_bitmap, row, 0, self.cols, self.pan_offset)
-    
+
+
+class SSD1306_SPI(SSD1306):
+    # Device name will be /dev/spidev-{bus}.{device}
+    # dc_pin is the data/commmand pin.  This line is HIGH for data, LOW for command.
+    # We will keep d/c low and bump it high only for commands with data.
+    # reset is normally HIGH, and pulled LOW to reset the display
+
+    def __init__(self, bus=0, device=0, dc_pin=1, reset_pin=2,
+                 buffer_rows=64, buffer_cols=128,
+                 rows=32, cols=128):
+        self.dc_pin = dc_pin
+        self.spi = gaugette.spi.SPI(bus, device)
+
+        super(SSD1306_SPI, self).__init__(reset_pin,
+                                          buffer_rows, buffer_cols,
+                                          rows, cols)
+        self.gpio.pinMode(self.dc_pin, self.gpio.OUTPUT)
+        self.gpio.digitalWrite(self.dc_pin, self.gpio.LOW)
+
+    def command(self, *bytes):
+        # already low
+        # self.gpio.digitalWrite(self.dc_pin, self.gpio.LOW)
+        self.spi.writebytes(list(bytes))
+
+    def data(self, bytes):
+        self.gpio.output(self.dc_pin, self.gpio.HIGH)
+        #  chunk data to work around 255 byte limitation in adafruit implementation of writebytes
+        # revisit - change to 1024 when Adafruit_BBIO is fixed.
+        max_xfer = 255 if gaugette.platform == 'beaglebone' else 1024
+        start = 0
+        remaining = len(bytes)
+        while remaining>0:
+            count = remaining if remaining <= max_xfer else max_xfer
+            remaining -= count
+            self.spi.writebytes(bytes[start:start+count])
+            start += count
+        self.gpio.output(self.dc_pin, self.gpio.LOW)
+
+
+class SSD1306_I2C(SSD1306):
+    I2C_CONTROL = 0x00
+    I2C_DATA    = 0x40
+
+    I2C_BLOCKSIZE = 32
+
+    # Device name will be /dev/i2c-{bus}.{device}
+    # bus number is being ignored as Adafruit_I2C auto-detects correct bus
+
+    def __init__(self, bus=0, address=0x3c, reset_pin=None,
+                 buffer_rows=64, buffer_cols=128,
+                 rows=32, cols=128):
+
+        super(SSD1306_I2C, self).__init__(reset_pin,
+                                          buffer_rows, buffer_cols,
+                                          rows, cols)
+
+        import smbus
+        self.i2c = smbus.SMBus(bus)
+        self.address = address
+
+    def command(self, *bytes):
+        self.i2c.write_i2c_block_data(self.address, self.I2C_CONTROL,
+                                      list(bytes))
+
+    def data(self, bytes):
+        # not more than 32 bytes at a time
+        for chunk in zip(*[iter(list(bytes))] * self.I2C_BLOCKSIZE):
+            self.i2c.write_i2c_block_data(self.address, self.I2C_DATA,
+                                          list(chunk))
+        # remaining bytes
+        rest = bytes[len(bytes) - len(bytes) % self.I2C_BLOCKSIZE:]
+        self.i2c.write_i2c_block_data(self.address, self.I2C_DATA, rest)
